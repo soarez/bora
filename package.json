@@ -1,0 +1,19 @@
+{
+  "name": "bora",
+  "version": "1.0.0",
+  "description": "Super simple deploys",
+  bin: "deploy",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Soarez/bora.git"
+  },
+  "author": "Igor Soarez <igorsoarez@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Soarez/bora/issues"
+  },
+  "homepage": "https://github.com/Soarez/bora"
+}

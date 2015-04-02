@@ -1,0 +1,137 @@
+#!/bin/bash
+
+function deploy {
+  # Update the rsync target on the server
+  rsync \
+    -av \
+    --delete \
+    --delete-excluded \
+    $rsync_ignore_list_param \
+    $rsync_source/ $target:$rsync_target
+
+  # Do everything else in a bash script
+  ssh $target bash -s << ENDSSH
+set -e
+
+# Ensure the deploys folder exists
+mkdir -p $deploys
+
+# Copy the rsynced folder
+deploydir=$deploys/$prefix$(date +%s)
+cp -r $rsync_target \$deploydir
+
+# Update the symlink to the latest deploy
+rm -f $symlink
+ln -s \$deploydir $symlink
+
+# Cd into the deploy
+cd \$deploydir
+
+# Run some build steps
+$build_cmd
+
+# Restart the service
+$restart_cmd
+
+# Keep only the latest deploys
+echo $deploys/$prefix* | tr ' ' '\n' | head -n -$keep | xargs rm -rf
+
+ENDSSH
+}
+
+function rollback {
+  ssh $target bash -s << ENDSSH
+set -e
+
+# Figure out which deploy to revert to
+deploydir=\$(echo $deploys/$prefix* | tr ' ' '\n' | tail -n 2 | head -n 1)
+
+# Update the symlink
+rm -f $symlink
+ln -s \$deploydir $symlink
+
+# Restart the service
+cd \$deploydir
+$restart_cmd
+
+# Delete the last deploy
+ls -d $deploys/$prefix* | tail -n 1 | xargs rm -rf
+
+echo Reverted to \$deploydir
+ENDSSH
+}
+
+function usage {
+  cat <<-END >&2
+USAGE:
+  $0 [-R] [-b cmd] [-i ignores] [-k #] [-n name] [-r cmd] [-s src] host [...]
+
+  -b      command to perform build the deployed folder
+  -d      path to a folder on the server where the deploys will reside,
+          defaults to ~/deploys
+  -i      path to a new-line separated list of files to ignore,
+          defaults to <source folder>/.rsyncignore
+  -k      number of previous builds to keep, defaults to 3
+  -n      project name, defaults to basename of the deployed foler path
+  -r      command to restart service
+  -R      rollback to the previous deploy instead of deploying
+  -s      path to the deploy folder, defaults to \$PWD
+  -S      where to create a symlink to the lastest deploy for convenience
+          defaults to <deploys folder>/<name>
+  host  the ssh target defined in your ~/.ssh/config (see ssh_config(5))
+END
+  exit
+}
+
+while getopts "b:d:i:k:n:r:Rs:S:" opt; do
+  case $opt in
+    b)    opt_build=$OPTARG ;;
+    d)    opt_deploys=$OPTARG ;;
+    i)    opt_ignore=$OPTARG ;;
+    k)    opt_keep=$OPTARG ;;
+    n)    opt_name=$OPTARG ;;
+    r)    opt_restart=$OPTARG ;;
+    R)    opt_rollback=1 ;;
+    s)    opt_bundle=$OPTARG ;;
+    S)    opt_symlink=$OPTARG ;;
+    h|?)  usage ;;
+  esac
+done
+
+rsync_source=${opt_bundle:-$PWD}
+name=${opt_name:-$(basename $rsync_source)}
+ignore_list=${opt_ignore:-$rsync_source/.rsyncignore}
+deploys=${opt_deploys:-\~/deploys}
+symlink=${opt_symlink:-$deploys/$name}
+keep=${opt_keep:-3}
+restart_cmd=${opt_restart:-echo No restart command defined}
+build_cmd=${opt_build:-echo No build command defined}
+
+rsync_target=$deploys/$name-rsync
+prefix=$name-t
+
+if [ -r "$ignore_list" ]; then
+  rsync_ignore_list_param=--exclude-from=$ignore_list
+else
+  rsync_ignore_list_param=
+fi
+
+if (( $# < 1)); then
+  usage
+fi
+
+# Quit on errors
+set -e
+
+shift $(( $OPTIND - 1 ))
+while (( $# )); do
+  target=$1
+
+  if (( opt_rollback )); then
+    rollback
+  else
+    deploy
+  fi
+
+  shift
+done
