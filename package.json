@@ -2,7 +2,7 @@
   "name": "bora",
   "version": "1.0.0",
   "description": "Super simple deploys",
-  bin: "deploy",
+  "bin": "deploy",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
