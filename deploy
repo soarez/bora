@@ -1,6 +1,18 @@
 #!/bin/bash
 
 function deploy {
+
+  # First make sure the required folders exist
+  ssh $target bash -s << ENDSSH
+set -e
+
+# Ensure the deploy folder exists
+mkdir -p $deploys
+mkdir -p $rsync_target
+mkdir -p \$(dirname $symlink)
+
+ENDSSH
+
   # Update the rsync target on the server
   rsync \
     -av \
@@ -12,9 +24,6 @@ function deploy {
   # Do everything else in a bash script
   ssh $target bash -s << ENDSSH
 set -e
-
-# Ensure the deploys folder exists
-mkdir -p $deploys
 
 # Copy the rsynced folder
 deploydir=$deploys/$prefix$(date +%s)
