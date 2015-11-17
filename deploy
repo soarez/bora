@@ -30,7 +30,7 @@ deploydir=$deploys/$prefix$(date +%s)
 cp -r $rsync_target \$deploydir
 
 # Update the symlink to the latest deploy
-rm -f $symlink
+rm -rf $symlink
 ln -s \$deploydir $symlink
 
 # Cd into the deploy
