@@ -125,14 +125,15 @@ else
   rsync_ignore_list_param=
 fi
 
-if (( $# < 1)); then
-  usage
-fi
-
 # Quit on errors
 set -e
 
 shift $(( $OPTIND - 1 ))
+
+if (( $# < 1)); then
+  usage
+fi
+
 while (( $# )); do
   target=$1
 
