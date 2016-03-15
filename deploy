@@ -131,6 +131,8 @@ set -e
 shift $(( $OPTIND - 1 ))
 
 if (( $# < 1)); then
+  echo 'No host given. Where do you want to deploy to?'
+  echo ''
   usage
 fi
 
